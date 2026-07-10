@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Бонове до лимит</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --ink:#16202B; --paper:#F5F6F8; --surface:#FFFFFF; --line:#E4E8EC;
+    --muted:#6B7684; --teal:#0E7C86; --teal-dark:#0A5E66;
+    --under:#1F8A5B; --under-bg:#E9F5EE; --cut:#B87309; --cut-bg:#FCEFCF;
+    --over-bg:#F1F3F5; --flag:#C0392B; --flag-bg:#FBEAE8;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--paper); color:var(--ink); line-height:1.5; -webkit-font-smoothing:antialiased;}
+  .num{font-variant-numeric:tabular-nums; font-feature-settings:"tnum" 1}
+  .wrap{max-width:1080px; margin:0 auto; padding:24px 20px 80px}
+
+  .banner{background:#0F3B41; color:#EAF6F7; border-radius:12px; padding:14px 16px; margin-bottom:18px; font-size:14px}
+  .banner b{color:#fff}
+
+  header.top .kicker{font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--teal); font-weight:700; margin-bottom:6px}
+  header.top h1{font-size:28px; margin:0 0 6px; font-weight:800; letter-spacing:-.01em}
+  header.top p{margin:0 0 18px; color:var(--muted); max-width:640px}
+
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:20px; margin-bottom:18px}
+  .card h2{font-size:14px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin:0 0 14px; font-weight:700}
+  .controls{display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:14px}
+  .field label{display:block; font-size:13px; font-weight:600; margin-bottom:6px}
+  .field input,.field select{width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:9px; font-size:15px; font-family:inherit; background:#fff; color:var(--ink)}
+  .field input:focus,.field select:focus{outline:2px solid var(--teal); outline-offset:1px; border-color:var(--teal)}
+
+  .keyrow{display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap}
+  .keyrow .field{flex:1; min-width:260px}
+  .keyhint{font-size:12px; color:var(--muted); margin-top:8px}
+  .keyhint a{color:var(--teal)}
+  .status-dot{font-size:13px; font-weight:600}
+  .status-dot.ok{color:var(--under)} .status-dot.bad{color:var(--flag)}
+
+  .drop{border:2px dashed var(--line); border-radius:12px; padding:24px 18px; text-align:center; cursor:pointer; background:#FCFDFE; transition:border-color .15s,background .15s}
+  .drop:hover,.drop.over{border-color:var(--teal); background:#F3FAFB}
+  .drop strong{color:var(--teal)}
+  .drop .hint{color:var(--muted); font-size:13px; margin-top:6px}
+  .files{margin-top:14px; display:flex; flex-wrap:wrap; gap:8px}
+  .chip{display:inline-flex; align-items:center; gap:8px; background:#EEF4F5; border:1px solid #DCE8E9; padding:6px 10px; border-radius:20px; font-size:13px}
+  .chip span{white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:220px}
+  .chip button{border:0; background:transparent; cursor:pointer; color:var(--muted); font-size:15px}
+  .chip button:hover{color:var(--flag)}
+
+  .actions{display:flex; gap:12px; align-items:center; flex-wrap:wrap}
+  .btn{font-family:inherit; font-size:15px; font-weight:600; padding:12px 22px; border-radius:10px; border:1px solid transparent; cursor:pointer; transition:background .15s,opacity .15s}
+  .btn-primary{background:var(--teal); color:#fff} .btn-primary:hover{background:var(--teal-dark)}
+  .btn-primary:disabled{background:#B7C2C4; cursor:not-allowed}
+  .btn-ghost{background:#fff; border-color:var(--line); color:var(--ink)} .btn-ghost:hover{border-color:var(--muted)}
+  .btn-stop{background:#fff; border-color:var(--flag); color:var(--flag)}
+
+  .progress{margin-top:16px; display:none} .progress.show{display:block}
+  .bar{height:8px; background:#E9EDF0; border-radius:6px; overflow:hidden}
+  .bar > i{display:block; height:100%; width:0; background:var(--teal); transition:width .2s}
+  .ptext{font-size:13px; color:var(--muted); margin-top:8px}
+
+  .result{margin-bottom:26px}
+  .rhead .fname{font-weight:700; font-size:16px; word-break:break-all; margin-bottom:12px}
+  .verdict{background:var(--surface); border:1px solid var(--line); border-left:4px solid var(--cut); border-radius:10px; padding:14px 16px; margin-bottom:14px}
+  .verdict.reached{border-left-color:var(--under)}
+  .verdict .big{font-size:17px; font-weight:700; margin-bottom:8px}
+  .verdict .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px 20px; font-size:14px}
+  .verdict .grid div span{display:block; color:var(--muted); font-size:12px}
+  .opts{margin-top:10px; font-size:13px; color:var(--muted)} .opts b{color:var(--ink)}
+
+  .tbl-scroll{overflow-x:auto; border:1px solid var(--line); border-radius:10px}
+  table{border-collapse:collapse; width:100%; font-size:14px; background:#fff}
+  th,td{padding:9px 12px; text-align:left; border-bottom:1px solid var(--line); white-space:nowrap}
+  th{background:#F7F9FA; font-weight:700; font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted)}
+  td.r,th.r{text-align:right}
+  tr.under td{background:var(--under-bg)}
+  tr.over td{background:var(--over-bg); color:#5A6570}
+  tr.flag td{background:var(--flag-bg)}
+  tr.cutoff td{background:var(--cut-bg); font-weight:700; border-bottom:3px solid var(--cut)}
+  .badge{display:inline-block; font-size:11px; font-weight:700; color:#fff; background:var(--cut); padding:2px 8px; border-radius:10px}
+  .st{font-size:12px; font-weight:600} .st.u{color:var(--under)} .st.o{color:var(--muted)} .st.f{color:var(--flag)}
+  @media (prefers-reduced-motion: reduce){*{transition:none !important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="banner">
+    <b>Важно:</b> това приложение работи в браузър с <b>твоя API ключ</b>. Изтегли този файл и го отвори в браузър (или го качи в GitHub Pages) — <b>не</b> вътре в Claude. Ключът се пази само в твоя браузър и се праща само към Anthropic.
+  </div>
+
+  <header class="top">
+    <div class="kicker">Обработка на касови бонове</div>
+    <h1>Бонове до лимит</h1>
+    <p>Качи PDF или снимки с бонове. Приложението разчита крайната сума на всеки бон, събира ги по ред и намира до кой бон натрупаната сума достига лимита. Сборовете се смятат тук, точно.</p>
+  </header>
+
+  <div class="card">
+    <h2>API ключ</h2>
+    <div class="keyrow">
+      <div class="field">
+        <label for="key">Anthropic API ключ</label>
+        <input id="key" type="password" placeholder="sk-ant-...">
+      </div>
+      <button class="btn btn-ghost" id="saveKey">Запази</button>
+      <button class="btn btn-ghost" id="testKey">Провери връзката</button>
+      <span class="status-dot" id="keyStatus"></span>
+    </div>
+    <div class="keyhint">Вземи ключ от <a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a> → API Keys. Зареди кредит от Billing и задай месечен лимит на харчене за сигурност.</div>
+  </div>
+
+  <div class="card">
+    <h2>Настройки</h2>
+    <div class="controls">
+      <div class="field">
+        <label for="limit">Лимит (обща сума)</label>
+        <input id="limit" type="number" value="2000" min="0" step="any" class="num">
+      </div>
+      <div class="field">
+        <label for="cur">Валута</label>
+        <input id="cur" type="text" value="EUR">
+      </div>
+      <div class="field">
+        <label for="mode">Как да реже спрямо лимита</label>
+        <select id="mode">
+          <option value="closest">Най-близо до лимита</option>
+          <option value="below">Без да надвишава лимита</option>
+          <option value="above">Щом надвиши лимита</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="model">Модел</label>
+        <select id="model">
+          <option value="claude-haiku-4-5-20251001">Haiku (по-евтин)</option>
+          <option value="claude-sonnet-4-6">Sonnet (по-точен)</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Файлове</h2>
+    <div class="drop" id="drop">
+      <div><strong>Избери файлове</strong> или ги пусни тук</div>
+      <div class="hint">PDF с много бонове или отделни снимки · може няколко наведнъж</div>
+      <input id="file" type="file" accept="application/pdf,image/*" multiple hidden>
+    </div>
+    <div class="files" id="files"></div>
+  </div>
+
+  <div class="actions">
+    <button class="btn btn-primary" id="run" disabled>Обработи боновете</button>
+    <button class="btn btn-stop" id="stop" style="display:none">Спри</button>
+    <button class="btn btn-ghost" id="export" style="display:none">Свали Excel</button>
+  </div>
+
+  <div class="progress" id="progress">
+    <div class="bar"><i id="barfill"></i></div>
+    <div class="ptext" id="ptext">Подготовка…</div>
+  </div>
+
+  <div id="results"></div>
+</div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+const PROMPT = `Разгледай изображението на страница от документ с касови бонове/фактури.
+Извади всеки бон, който виждаш на страницата.
+Върни САМО валиден JSON, без обяснения и без code блокове:
+{"receipts":[{"amount": число, "bon_number":"номер или null", "date":"ГГГГ-ММ-ДД или null", "store":"магазин или null"}]}
+Правила:
+- "amount" е КРАЙНАТА сума за плащане (реда 'СУМА' / 'ОБЩО' / 'ЗА ПЛАЩАНЕ' / 'ВСИЧКО').
+- Числото е с точка за десетичен знак, без валута (напр. 34.90).
+- Ако на страницата няма бон -> {"receipts":[]}.
+- Изброй боновете отгоре надолу.`;
+
+let selected = [], allResults = [], cancelled = false;
+let processedPages = 0, totalPages = 0;
+let apiKey = "";
+
+const el = id => document.getElementById(id);
+const drop = el("drop"), fileInput = el("file"), filesBox = el("files");
+const runBtn = el("run"), stopBtn = el("stop"), exportBtn = el("export");
+const progress = el("progress"), barfill = el("barfill"), ptext = el("ptext"), results = el("results");
+const keyInput = el("key"), keyStatus = el("keyStatus");
+
+/* ---------- localStorage (запазени настройки) ---------- */
+function loadSaved(){
+  try{
+    apiKey = localStorage.getItem("anthropic_key") || "";
+    keyInput.value = apiKey;
+    const g = (k,d)=>localStorage.getItem(k) ?? d;
+    el("limit").value = g("bl_limit","2000");
+    el("cur").value = g("bl_cur","EUR");
+    el("mode").value = g("bl_mode","closest");
+    el("model").value = g("bl_model","claude-haiku-4-5-20251001");
+    if(apiKey){ keyStatus.textContent="ключът е зареден"; keyStatus.className="status-dot ok"; }
+  }catch(e){}
+}
+["limit","cur","mode","model"].forEach(id=>{
+  el(id).addEventListener("change", ()=>{ try{ localStorage.setItem("bl_"+id, el(id).value); }catch(e){} });
+});
+el("saveKey").addEventListener("click", ()=>{
+  apiKey = keyInput.value.trim();
+  try{ localStorage.setItem("anthropic_key", apiKey); }catch(e){}
+  keyStatus.textContent = apiKey ? "запазен" : "празен"; keyStatus.className = "status-dot " + (apiKey?"ok":"bad");
+});
+
+/* ---------- Проверка на връзката ---------- */
+el("testKey").addEventListener("click", async ()=>{
+  apiKey = keyInput.value.trim();
+  if(!apiKey){ keyStatus.textContent="постави ключ"; keyStatus.className="status-dot bad"; return; }
+  keyStatus.textContent="проверявам…"; keyStatus.className="status-dot";
+  try{
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method:"POST",
+      headers:{ "x-api-key":apiKey, "anthropic-version":"2023-06-01", "anthropic-dangerous-direct-browser-access":"true", "content-type":"application/json" },
+      body: JSON.stringify({ model: el("model").value, max_tokens:8, messages:[{role:"user", content:"ok"}] })
+    });
+    if(res.ok){ keyStatus.textContent="връзката работи ✓"; keyStatus.className="status-dot ok"; try{ localStorage.setItem("anthropic_key", apiKey); }catch(e){} }
+    else { const t=await res.text(); keyStatus.textContent="грешка: "+res.status; keyStatus.className="status-dot bad"; console.log(t); }
+  }catch(e){ keyStatus.textContent="няма връзка (виж дали е през браузър, не в Claude)"; keyStatus.className="status-dot bad"; }
+});
+
+/* ---------- Файлове ---------- */
+drop.addEventListener("click", ()=>fileInput.click());
+drop.addEventListener("dragover", e=>{ e.preventDefault(); drop.classList.add("over"); });
+drop.addEventListener("dragleave", ()=>drop.classList.remove("over"));
+drop.addEventListener("drop", e=>{ e.preventDefault(); drop.classList.remove("over"); addFiles(e.dataTransfer.files); });
+fileInput.addEventListener("change", e=>addFiles(e.target.files));
+function addFiles(list){
+  for(const f of list){
+    if(!(f.type==="application/pdf" || f.type.startsWith("image/"))) continue;
+    if(!selected.some(s=>s.name===f.name && s.size===f.size)) selected.push(f);
+  }
+  renderChips();
+}
+function renderChips(){
+  filesBox.innerHTML="";
+  selected.forEach((f,i)=>{
+    const c=document.createElement("div"); c.className="chip";
+    c.innerHTML=`<span title="${f.name}">${f.name}</span>`;
+    const b=document.createElement("button"); b.textContent="×"; b.title="Премахни";
+    b.onclick=()=>{ selected.splice(i,1); renderChips(); };
+    c.appendChild(b); filesBox.appendChild(c);
+  });
+  runBtn.disabled = selected.length===0;
+}
+
+/* ---------- Помощни ---------- */
+function coerceNum(v){
+  if(typeof v==="number" && isFinite(v)) return v;
+  if(typeof v==="string"){ const s=v.replace(/\s/g,"").replace(",",".").replace(/[^0-9.\-]/g,""); const n=parseFloat(s); return isNaN(n)?null:n; }
+  return null;
+}
+function fmt(n){ return (typeof n==="number" && isFinite(n)) ? n.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}) : ""; }
+function parseJson(text){
+  let t=(text||"").trim().replace(/^```(?:json)?/i,"").trim().replace(/```$/,"").trim();
+  const s=t.indexOf("{"), e=t.lastIndexOf("}"); if(s!==-1&&e!==-1) t=t.slice(s,e+1);
+  return JSON.parse(t);
+}
+function normalize(r){ return { amount:coerceNum(r.amount), bon_number:r.bon_number??null, date:r.date??null, store:r.store??null }; }
+
+/* ---------- API ---------- */
+async function callClaude(b64, media){
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method:"POST",
+    headers:{ "x-api-key":apiKey, "anthropic-version":"2023-06-01", "anthropic-dangerous-direct-browser-access":"true", "content-type":"application/json" },
+    body: JSON.stringify({ model: el("model").value, max_tokens:800, messages:[{ role:"user", content:[
+      { type:"image", source:{ type:"base64", media_type:media, data:b64 } },
+      { type:"text", text:PROMPT }
+    ]}]})
+  });
+  if([429,529,503,500,502,504].includes(res.status)){ const err=new Error("HTTP "+res.status); err.retry=true; throw err; }
+  if(res.status===401 || res.status===403){ const err=new Error("Проблем с ключа/достъпа (HTTP "+res.status+")"); err.fatal=true; throw err; }
+  if(!res.ok){ throw new Error("HTTP "+res.status); }
+  const data = await res.json();
+  if(data.type==="error"){ throw new Error(data.error?.message||"API error"); }
+  const text=(data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
+  return (parseJson(text).receipts||[]).map(normalize);
+}
+async function callWithRetry(b64, media){
+  let delay=2000;
+  for(let a=0;a<5;a++){
+    try{ return await callClaude(b64,media); }
+    catch(e){
+      if(e && e.fatal) throw e;
+      const retry = e && (e.retry || /rate|overload|429|529|timeout/i.test(String(e.message||"")));
+      if(a===4 || !retry) return [{ amount:null, bon_number:null, date:null, store:null, note:"грешка при разчитане" }];
+      await new Promise(r=>setTimeout(r, delay)); delay=Math.min(delay*1.8, 30000);
+    }
+  }
+  return [{ amount:null, note:"грешка при разчитане" }];
+}
+
+/* ---------- PDF -> изображение ---------- */
+async function renderPage(doc, pageNum){
+  const page = await doc.getPage(pageNum);
+  const base = page.getViewport({ scale:1 });
+  const scale = Math.min(2.5, Math.max(1.0, 1500/base.width));
+  const vp = page.getViewport({ scale });
+  const canvas = document.createElement("canvas");
+  canvas.width=Math.floor(vp.width); canvas.height=Math.floor(vp.height);
+  await page.render({ canvasContext:canvas.getContext("2d"), viewport:vp }).promise;
+  return { b64: canvas.toDataURL("image/jpeg",0.85).split(",")[1], media:"image/jpeg" };
+}
+
+/* ---------- Пул ---------- */
+async function runPool(items, limit, worker){
+  const out=new Array(items.length); let idx=0;
+  async function next(){ if(cancelled) return; const i=idx++; if(i>=items.length) return; out[i]=await worker(items[i]); return next(); }
+  const runners=[]; for(let k=0;k<Math.min(limit,items.length);k++) runners.push(next());
+  await Promise.all(runners); return out;
+}
+
+/* ---------- Логика за лимита ---------- */
+function computeCutoff(receipts, target, mode){
+  let running=0; const valid=[];
+  receipts.forEach(r=>{ if(typeof r.amount==="number"&&isFinite(r.amount)){ running+=r.amount; r.cumulative=Math.round(running*100)/100; valid.push(r);} else r.cumulative=null; });
+  let below=null, above=null;
+  valid.forEach(r=>{ if(r.cumulative<=target) below=r; if(r.cumulative>=target && above===null) above=r; });
+  const dist=r=>r?Math.abs(r.cumulative-target):Infinity;
+  let rec = mode==="below"?below : mode==="above"?above : ((below&&above)?(dist(below)<=dist(above)?below:above):(below||above));
+  const recIdx = rec?rec.idx:0;
+  receipts.forEach(r=>{ r.included = recIdx?(r.idx<=recIdx):false; r.isCut = !!rec && r.idx===recIdx; });
+  const inc = receipts.filter(r=>r.included && typeof r.amount==="number").length;
+  return { target, rec, below, above, totalAll:Math.round(running*100)/100, countTotal:receipts.length, includedCount:inc, flagged:receipts.length-valid.length };
+}
+
+/* ---------- Прогрес ---------- */
+function setProgress(txt){
+  const pct = totalPages?Math.round(processedPages/totalPages*100):0;
+  barfill.style.width=pct+"%";
+  ptext.textContent = txt || `Обработени ${processedPages} от ${totalPages} страници`;
+}
+
+/* ---------- Процес ---------- */
+runBtn.addEventListener("click", processAll);
+stopBtn.addEventListener("click", ()=>{ cancelled=true; ptext.textContent="Спиране…"; });
+
+async function processAll(){
+  apiKey = keyInput.value.trim();
+  if(!apiKey){ el("testKey").click(); return; }
+  cancelled=false; allResults=[]; results.innerHTML=""; processedPages=0; totalPages=0;
+  const target=parseFloat(el("limit").value)||0, cur=el("cur").value.trim()||"EUR", mode=el("mode").value;
+
+  runBtn.disabled=true; exportBtn.style.display="none"; stopBtn.style.display="inline-block";
+  progress.classList.add("show"); setProgress("Отчитане на страници…");
+
+  const meta=[];
+  for(const f of selected){
+    if(f.type==="application/pdf"){
+      try{ const buf=await f.arrayBuffer(); const doc=await pdfjsLib.getDocument({data:new Uint8Array(buf)}).promise; meta.push({file:f,pages:doc.numPages}); totalPages+=doc.numPages; doc.destroy(); }
+      catch(e){ meta.push({file:f,pages:1,broken:true}); totalPages+=1; }
+    } else { meta.push({file:f,pages:1}); totalPages+=1; }
+  }
+  setProgress();
+
+  try{
+    for(const m of meta){
+      if(cancelled) break;
+      const f=m.file; let pageResults=[];
+      if(f.type==="application/pdf" && !m.broken){
+        const buf=await f.arrayBuffer(); const doc=await pdfjsLib.getDocument({data:new Uint8Array(buf)}).promise;
+        const nums=Array.from({length:doc.numPages},(_,i)=>i+1);
+        pageResults=await runPool(nums,5, async(pn)=>{
+          if(cancelled) return {page:pn,receipts:[]};
+          let receipts;
+          try{ const img=await renderPage(doc,pn); receipts=await callWithRetry(img.b64,img.media); }
+          catch(e){ if(e&&e.fatal) throw e; receipts=[{amount:null,note:"грешка при рендиране"}]; }
+          processedPages++; setProgress(); return {page:pn,receipts};
+        });
+        doc.destroy();
+      } else {
+        const url=await new Promise(res=>{ const rd=new FileReader(); rd.onload=()=>res(rd.result); rd.readAsDataURL(f); });
+        const receipts=await callWithRetry(url.split(",")[1], f.type||"image/jpeg");
+        processedPages++; setProgress(); pageResults=[{page:1,receipts}];
+      }
+      pageResults.sort((a,b)=>a.page-b.page);
+      const receipts=[];
+      pageResults.forEach(pr=>(pr.receipts||[]).forEach(r=>{ r.page=pr.page; receipts.push(r); }));
+      receipts.forEach((r,i)=>r.idx=i+1);
+      const summary=computeCutoff(receipts,target,mode);
+      allResults.push({name:f.name, receipts, summary, cur});
+      renderResult(allResults[allResults.length-1]);
+    }
+  }catch(e){
+    if(e&&e.fatal){ setProgress(""); ptext.textContent=e.message+" — провери ключа с бутона за проверка на връзката."; }
+    else { ptext.textContent="Грешка: "+(e.message||e); }
+    stopBtn.style.display="none"; runBtn.disabled=false; return;
+  }
+
+  stopBtn.style.display="none"; runBtn.disabled=false;
+  setProgress(cancelled?`Спряно. Обработени ${processedPages} страници.`:`Готово · ${processedPages} страници.`);
+  if(allResults.length) exportBtn.style.display="inline-block";
+}
+
+/* ---------- Резултат ---------- */
+function renderResult(item){
+  const {name,receipts,summary,cur}=item; const rec=summary.rec;
+  const wrap=document.createElement("div"); wrap.className="result";
+  const big = rec ? `Лимитът ${fmt(summary.target)} ${cur} се достига на бон №${rec.idx} (стр. ${rec.page})`
+                  : `Лимитът не е достигнат — общата сума е ${fmt(summary.totalAll)} ${cur}`;
+  let opts="";
+  if(summary.below && summary.above && summary.below!==summary.above){
+    opts=`<div class="opts">Спиране <b>преди</b> лимита: бон №${summary.below.idx} = <b>${fmt(summary.below.cumulative)} ${cur}</b> &nbsp;·&nbsp; Спиране <b>щом мине</b>: бон №${summary.above.idx} = <b>${fmt(summary.above.cumulative)} ${cur}</b></div>`;
+  }
+  wrap.innerHTML = `
+    <div class="rhead"><div class="fname">${name}</div></div>
+    <div class="verdict ${rec?'reached':''}">
+      <div class="big">${big}</div>
+      <div class="grid">
+        <div><span>Натрупана сума до бона</span><b class="num">${rec?fmt(rec.cumulative)+" "+cur:"—"}</b></div>
+        <div><span>Включени бонове</span><b class="num">${summary.includedCount}</b></div>
+        <div><span>Общо бонове</span><b class="num">${summary.countTotal}</b></div>
+        <div><span>Обща сума всички</span><b class="num">${fmt(summary.totalAll)} ${cur}</b></div>
+        <div><span>Неразчетени (проверка)</span><b class="num">${summary.flagged}</b></div>
+      </div>${opts}
+    </div>`;
+  const scroll=document.createElement("div"); scroll.className="tbl-scroll";
+  const t=document.createElement("table");
+  t.innerHTML=`<thead><tr><th class="r">№</th><th class="r">Стр.</th><th>Бон №</th><th>Дата</th><th>Магазин</th><th class="r">Сума</th><th class="r">Натрупана</th><th>Статус</th></tr></thead>`;
+  const tb=document.createElement("tbody");
+  receipts.forEach(r=>{
+    const has=typeof r.amount==="number"&&isFinite(r.amount);
+    let cls="over",stCls="o",stTxt="изключен";
+    if(r.isCut) cls="cutoff";
+    if(!has){ cls="flag"; stCls="f"; stTxt="проверка"; }
+    else if(r.included){ if(!r.isCut) cls="under"; stCls="u"; stTxt="включен"; }
+    const tr=document.createElement("tr"); tr.className=cls;
+    const mark=r.isCut?` <span class="badge">◄ ДО ТУК</span>`:"";
+    const note=(!has&&r.note)?` (${r.note})`:"";
+    tr.innerHTML=`<td class="r num">${r.idx}</td><td class="r num">${r.page}</td><td>${r.bon_number??""}</td><td>${r.date??""}</td><td>${(r.store??"")}${note}</td><td class="r num">${has?fmt(r.amount):"—"}</td><td class="r num">${r.cumulative!=null?fmt(r.cumulative):"—"}</td><td><span class="st ${stCls}">${stTxt}</span>${mark}</td>`;
+    tb.appendChild(tr);
+  });
+  t.appendChild(tb); scroll.appendChild(t); wrap.appendChild(scroll); results.appendChild(wrap);
+}
+
+/* ---------- Excel ---------- */
+function sanitizeSheet(n){ return (n||"лист").replace(/[\[\]\:\*\?\/\\]/g,"_").slice(0,31); }
+exportBtn.addEventListener("click", ()=>{
+  const wb=XLSX.utils.book_new(); const cur0=allResults[0]?.cur||"EUR";
+  const sa=[["Файл","Лимит","Достигнат на бон №","Стр.","Натрупана сума","Вкл. бонове","Общо бонове","Обща сума всички","Неразчетени"]];
+  allResults.forEach(({name,summary})=>{ const rec=summary.rec; sa.push([name,summary.target,rec?rec.idx:"—",rec?rec.page:"—",rec?rec.cumulative:"—",summary.includedCount,summary.countTotal,summary.totalAll,summary.flagged]); });
+  const ws0=XLSX.utils.aoa_to_sheet(sa); ws0["!cols"]=[{wch:26},{wch:10},{wch:16},{wch:6},{wch:15},{wch:11},{wch:12},{wch:15},{wch:11}];
+  XLSX.utils.book_append_sheet(wb,ws0,"Обобщение");
+  const used={};
+  allResults.forEach(({name,receipts,summary,cur})=>{
+    const aoa=[["№","Стр.","Бон №","Дата","Магазин","Сума","Натрупана сума","Статус","Бележка"]];
+    receipts.forEach(r=>{ const has=typeof r.amount==="number"&&isFinite(r.amount); const status=!has?"проверка":(r.included?"включен":"изключен"); const mark=r.isCut?"◄ ДО ТУК Е ЛИМИТЪТ":(!has&&r.note?r.note:""); aoa.push([r.idx,r.page,r.bon_number??"",r.date??"",r.store??"",has?r.amount:"",r.cumulative!=null?r.cumulative:"",status,mark]); });
+    aoa.push([]); aoa.push(["Лимит:",summary.target+" "+(cur||cur0)]); aoa.push(["Достигнат на бон №:",summary.rec?summary.rec.idx:"не е достигнат"]); aoa.push(["Натрупана сума до него:",summary.rec?summary.rec.cumulative:"—"]); aoa.push(["Включени бонове:",summary.includedCount]); aoa.push(["Обща сума всички:",summary.totalAll]);
+    const ws=XLSX.utils.aoa_to_sheet(aoa); ws["!cols"]=[{wch:6},{wch:6},{wch:14},{wch:12},{wch:22},{wch:12},{wch:15},{wch:11},{wch:24}];
+    let nm=sanitizeSheet(name), base=nm, k=2; while(used[nm]){ nm=sanitizeSheet(base).slice(0,28)+"_"+k; k++; } used[nm]=true;
+    XLSX.utils.book_append_sheet(wb,ws,nm);
+  });
+  XLSX.writeFile(wb,"bonove_rezultat.xlsx");
+});
+
+loadSaved();
+</script>
+</body>
+</html>
