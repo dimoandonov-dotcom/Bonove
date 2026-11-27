@@ -30,16 +30,20 @@ try { execFileSync('ffmpeg', ['-version'], { stdio: 'ignore' }); } catch { HAS_F
 
 /* ---------------- БАЗА (JSON файл) ---------------- */
 const newId = () => crypto.randomBytes(6).toString('hex');
+const TRANSITIONS = ['fade', 'slide', 'up', 'zoom', 'blur', 'wipe', 'black', 'flip', 'cut', 'random'];
+const newScreen = id => ({ id, name: 'Екран ' + id, fit: 'contain', sound: false, transition: 'fade', tdur: 1, kenburns: true, logo: false });
 function freshDb() {
   const db = { version: 1, screens: [], media: [], playlists: {} };
   for (let i = 1; i <= SCREENS_DEFAULT; i++) {
-    db.screens.push({ id: String(i), name: 'Екран ' + i, fit: 'contain', sound: false });
+    db.screens.push(newScreen(String(i)));
     db.playlists[String(i)] = [];
   }
   return db;
 }
 let db;
 try { db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); } catch { db = freshDb(); }
+// по-стари записи без новите полета
+for (const s of db.screens) for (const [k, v] of Object.entries(newScreen(s.id))) if (s[k] === undefined) s[k] = v;
 const live = {}; // screenId -> { lastSeen, current } — само в паметта
 
 let saveTimer = null;
@@ -183,7 +187,7 @@ app.post('/api/upload', auth, upload.array('files', 30), (req, res) => {
     const name = Buffer.from(f.originalname, 'latin1').toString('utf8').replace(/\.[^.]+$/, '');
     const m = { id: newId(), name, type, original: f.originalname, status: 'processing', createdAt: new Date().toISOString() };
     db.media.push(m);
-    for (const sid of screens) db.playlists[sid].push({ id: newId(), mediaId: m.id, seconds: 10, from: '', to: '', on: true });
+    for (const sid of screens) db.playlists[sid].push({ id: newId(), mediaId: m.id, seconds: 10, from: '', to: '', on: true, transition: '' });
     added.push(m.id);
     enqueue(m.id, f.path);
   }
@@ -198,7 +202,7 @@ app.use((err, req, res, next) => {
 /* екрани */
 app.post('/api/screens', auth, (req, res) => {
   const id = String(Math.max(0, ...db.screens.map(s => +s.id || 0)) + 1);
-  db.screens.push({ id, name: 'Екран ' + id, fit: 'contain', sound: false });
+  db.screens.push(newScreen(id));
   db.playlists[id] = [];
   save(); res.json({ ok: true, id });
 });
@@ -209,6 +213,10 @@ app.patch('/api/screens/:id', auth, (req, res) => {
   if (typeof b.name === 'string' && b.name.trim()) s.name = b.name.trim().slice(0, 60);
   if (['contain', 'cover'].includes(b.fit)) s.fit = b.fit;
   if (typeof b.sound === 'boolean') s.sound = b.sound;
+  if (TRANSITIONS.includes(b.transition)) s.transition = b.transition;
+  if (b.tdur !== undefined) s.tdur = Math.min(3, Math.max(0.2, Number(b.tdur) || 1));
+  if (typeof b.kenburns === 'boolean') s.kenburns = b.kenburns;
+  if (typeof b.logo === 'boolean') s.logo = b.logo;
   save(); res.json({ ok: true });
 });
 app.delete('/api/screens/:id', auth, (req, res) => {
@@ -225,7 +233,8 @@ app.put('/api/playlists/:id', auth, (req, res) => {
   db.playlists[req.params.id] = items
     .filter(i => i && db.media.some(m => m.id === i.mediaId))
     .map(i => ({ id: typeof i.id === 'string' && i.id ? i.id.slice(0, 20) : newId(), mediaId: i.mediaId,
-      seconds: Math.min(600, Math.max(3, parseInt(i.seconds, 10) || 10)), from: okDate(i.from), to: okDate(i.to), on: i.on !== false }));
+      seconds: Math.min(600, Math.max(3, parseInt(i.seconds, 10) || 10)), from: okDate(i.from), to: okDate(i.to), on: i.on !== false,
+      transition: TRANSITIONS.includes(i.transition) ? i.transition : '' }));
   save(); res.json({ ok: true });
 });
 
@@ -257,16 +266,19 @@ app.get('/api/play/:id', (req, res) => {
     .filter(i => i.on && (!i.from || i.from <= d) && (!i.to || i.to >= d))
     .map(i => ({ i, m: db.media.find(m => m.id === i.mediaId) }))
     .filter(x => x.m && x.m.status === 'ready' && x.m.file)
-    .map(({ i, m }) => ({ id: i.id, type: m.type, url: '/media/' + m.file, seconds: i.seconds, name: m.name }));
+    .map(({ i, m }) => ({ id: i.id, type: m.type, url: '/media/' + m.file, seconds: i.seconds, name: m.name, transition: i.transition || '' }));
   res.set('Cache-Control', 'no-store');
-  res.json({ key: crypto.createHash('md5').update(JSON.stringify([s, items])).digest('hex'), name: s.name, fit: s.fit, sound: s.sound, items });
+  res.json({ key: crypto.createHash('md5').update(JSON.stringify([s, items])).digest('hex'), name: s.name, fit: s.fit, sound: s.sound,
+    transition: s.transition, tdur: s.tdur, kenburns: s.kenburns, logo: s.logo, items });
 });
 app.post('/api/play/:id/ping', (req, res) => {
+  if (req.query.preview) return res.json({ ok: true }); // прегледът в админа не се брои за телевизор
   live[req.params.id] = { lastSeen: Date.now(), current: String((req.body && req.body.current) || '').slice(0, 120) };
   res.json({ ok: true });
 });
 
 app.use('/media', express.static(MEDIA_DIR, { immutable: true, maxAge: '365d' }));
+app.use('/static', express.static(path.join(__dirname, 'public'), { maxAge: '7d', index: false }));
 app.get('/tv/:id', (req, res) => res.sendFile(path.join(__dirname, 'public', 'tv.html')));
 app.get('/tv', (req, res) => res.redirect('/tv/1'));
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
