@@ -1,0 +1,27 @@
+plugins { id 'com.android.application' }
+
+android {
+    namespace 'bg.magazin.ekrani'
+    compileSdk 35
+    defaultConfig {
+        applicationId 'bg.magazin.ekrani'
+        minSdk 24
+        targetSdk 35
+        versionCode Integer.parseInt(System.getenv('BUILD_NUMBER') ?: '1')
+        versionName "1." + (System.getenv('BUILD_NUMBER') ?: '1')
+        buildConfigField 'String', 'BASE_URL', '"' + (System.getenv('EKRANI_URL') ?: 'https://ekrani-production.up.railway.app') + '"'
+    }
+    buildFeatures { buildConfig true }
+    signingConfigs {
+        release {
+            storeFile file('ekrani.keystore')
+            storePassword 'ekrani-tv'
+            keyAlias 'ekrani'
+            keyPassword 'ekrani-tv'
+        }
+    }
+    buildTypes {
+        release { minifyEnabled false; signingConfig signingConfigs.release }
+    }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+}

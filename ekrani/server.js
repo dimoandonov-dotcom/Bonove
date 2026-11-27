@@ -270,6 +270,9 @@ app.use('/media', express.static(MEDIA_DIR, { immutable: true, maxAge: '365d' })
 app.get('/tv/:id', (req, res) => res.sendFile(path.join(__dirname, 'public', 'tv.html')));
 app.get('/tv', (req, res) => res.redirect('/tv/1'));
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+// приложението за телевизора (Android TV) — сглобява се в GitHub Actions
+const APK_URL = process.env.APK_URL || 'https://github.com/dimoandonov-dotcom/Bonove/releases/latest/download/ekrani-tv.apk';
+app.get(['/app.apk', '/apk', '/app'], (req, res) => res.redirect(302, APK_URL));
 app.get('/health', (req, res) => res.json({ ok: true }));
 
 app.listen(PORT, () => console.log(`Екрани слуша на ${PORT}. Данни: ${DATA_DIR}${APP_PASSWORD ? '' : ' — ВНИМАНИЕ: няма APP_PASSWORD, админът е отворен'}`));

@@ -108,7 +108,8 @@
   }
 
   // Браузърът позволява звук само след едно натискане (OK на дистанционното)
-  let unlocked = false;
+  // в приложението за телевизора звукът е разрешен от самото начало
+  let unlocked = /[?&]app=1/.test(location.search);
   function showTap() { if (!unlocked) document.getElementById('tap').style.display = 'block'; }
   function unlock() {
     unlocked = true; document.getElementById('tap').style.display = 'none';
