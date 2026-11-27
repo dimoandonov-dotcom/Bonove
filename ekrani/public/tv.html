@@ -15,6 +15,12 @@
   body.logo #logo{display:block}
   #msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1.4vw;
     color:#cfd3d6;font:600 2.2vw/1.3 -apple-system,"Segoe UI",Roboto,sans-serif;text-align:center;background:radial-gradient(ellipse at center,#2a2421 0,#000 70%)}
+  #clock{position:absolute;z-index:5;display:none;color:#fff;background:rgba(20,16,13,.55);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    border-radius:1.2vw;padding:.8vw 1.4vw .9vw;font-family:-apple-system,"Segoe UI",Roboto,sans-serif;box-shadow:0 .4vw 1.6vw rgba(0,0,0,.25);border-left:.35vw solid #F37F28}
+  body.clock #clock{display:block}
+  #clock.tl{left:2.2vw;top:2.2vw} #clock.bl{left:2.2vw;bottom:2.2vw} #clock.br{right:2.2vw;bottom:2.2vw}
+  #clock b{display:block;font-size:3.4vw;line-height:1;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+  #clock span{display:block;font-size:1.15vw;font-weight:600;margin-top:.35vw;opacity:.85}
   #msg[hidden]{display:none}
   #msg img{width:18vw;opacity:.95}
   #msg small{font-size:1.2vw;font-weight:400;opacity:.6}
@@ -25,6 +31,7 @@
 <body>
 <div id="stage"><div class="slot" id="s0"></div><div class="slot" id="s1"></div></div>
 <img id="logo" src="/static/logo-white.png" alt="">
+<div id="clock" class="bl"><b id="ckT"></b><span id="ckD"></span></div>
 <div id="msg" hidden></div>
 <div id="tap">Натисни OK за звук</div>
 <script>
@@ -54,6 +61,8 @@
       document.title = j.name || 'Екран';
       document.body.classList.toggle('cover', j.fit === 'cover');
       document.body.classList.toggle('logo', !!j.logo);
+      document.body.classList.toggle('clock', !!j.clock);
+      document.getElementById('clock').className = j.clockPos || 'bl';
       cfg = { sound: !!j.sound && !PREVIEW, transition: j.transition || 'fade', tdur: j.tdur || 1, kenburns: j.kenburns !== false };
       if (j.key !== key) {
         key = j.key;
@@ -177,6 +186,16 @@
   async function wake() { try { if (navigator.wakeLock && !PREVIEW) await navigator.wakeLock.request('screen'); } catch (e) {} }
   document.addEventListener('visibilitychange', () => { if (!document.hidden) wake(); });
   wake();
+
+  // часовник и дата по българско време
+  const fT = new Intl.DateTimeFormat('bg-BG', { timeZone: 'Europe/Sofia', hour: '2-digit', minute: '2-digit', hour12: false });
+  const fD = new Intl.DateTimeFormat('bg-BG', { timeZone: 'Europe/Sofia', weekday: 'long', day: 'numeric', month: 'long' });
+  function tick() {
+    const d = new Date(), t = fD.format(d);
+    document.getElementById('ckT').textContent = fT.format(d);
+    document.getElementById('ckD').textContent = t.charAt(0).toUpperCase() + t.slice(1);
+  }
+  tick(); setInterval(tick, 5000);
 
   load(); ping();
   setInterval(load, POLL);

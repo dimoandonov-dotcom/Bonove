@@ -445,6 +445,8 @@ function render() {
           <div><span class="flabel">Картина</span><div class="seg"><button data-fit="contain" aria-pressed="${sc.fit === 'contain'}">Цялата</button><button data-fit="cover" aria-pressed="${sc.fit === 'cover'}">Запълни екрана</button></div></div>
           <div class="tog"><div><b>Звук на видеата</b><span>Само в приложението на телевизора</span></div><button class="sw" data-set="sound" aria-pressed="${!!sc.sound}" aria-label="Звук"></button></div>
           <div class="tog"><div><b>Лого 300 в ъгъла</b><span>Горе вдясно, върху всичко</span></div><button class="sw" data-set="logo" aria-pressed="${!!sc.logo}" aria-label="Лого"></button></div>
+          <div class="tog"><div><b>Часовник и дата</b><span>Час и ден от седмицата на екрана</span></div><button class="sw" data-set="clock" aria-pressed="${!!sc.clock}" aria-label="Часовник"></button></div>
+          ${sc.clock ? `<div class="seg"><button data-cpos="tl" aria-pressed="${sc.clockPos === 'tl'}">Горе вляво</button><button data-cpos="bl" aria-pressed="${(sc.clockPos || 'bl') === 'bl'}">Долу вляво</button><button data-cpos="br" aria-pressed="${sc.clockPos === 'br'}">Долу вдясно</button></div>` : ''}
           <div class="tog"><div><b>Живи снимки</b><span>Бавно приближаване на снимките</span></div><button class="sw" data-set="kenburns" aria-pressed="${sc.kenburns !== false}" aria-label="Живи снимки"></button></div>
         </div>
 
@@ -484,6 +486,7 @@ function bind(sc, pl) {
   $$('[data-t]').forEach(b => b.onclick = () => { tab = b.dataset.t; render(); });
   $('#scName').onchange = e => { patchScreen({ name: e.target.value }); toast('Името е запазено'); };
   $$('[data-fit]').forEach(b => b.onclick = () => patchScreen({ fit: b.dataset.fit }));
+  $$('[data-cpos]').forEach(b => b.onclick = () => patchScreen({ clockPos: b.dataset.cpos }));
   $$('[data-set]').forEach(b => b.onclick = () => patchScreen({ [b.dataset.set]: b.getAttribute('aria-pressed') !== 'true' }));
   $$('[data-tr]').forEach(b => b.onclick = () => { patchScreen({ transition: b.dataset.tr }); toast('Преход: ' + trName(b.dataset.tr)); });
   const td = $('#tdur');

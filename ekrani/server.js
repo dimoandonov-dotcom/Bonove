@@ -31,7 +31,7 @@ try { execFileSync('ffmpeg', ['-version'], { stdio: 'ignore' }); } catch { HAS_F
 /* ---------------- БАЗА (JSON файл) ---------------- */
 const newId = () => crypto.randomBytes(6).toString('hex');
 const TRANSITIONS = ['fade', 'slide', 'up', 'zoom', 'blur', 'wipe', 'black', 'flip', 'cut', 'random'];
-const newScreen = id => ({ id, name: 'Екран ' + id, fit: 'contain', sound: false, transition: 'fade', tdur: 1, kenburns: true, logo: false });
+const newScreen = id => ({ id, name: 'Екран ' + id, fit: 'contain', sound: false, transition: 'fade', tdur: 1, kenburns: true, logo: false, clock: true, clockPos: 'bl' });
 function freshDb() {
   const db = { version: 1, screens: [], media: [], playlists: {} };
   for (let i = 1; i <= SCREENS_DEFAULT; i++) {
@@ -217,6 +217,8 @@ app.patch('/api/screens/:id', auth, (req, res) => {
   if (b.tdur !== undefined) s.tdur = Math.min(3, Math.max(0.2, Number(b.tdur) || 1));
   if (typeof b.kenburns === 'boolean') s.kenburns = b.kenburns;
   if (typeof b.logo === 'boolean') s.logo = b.logo;
+  if (typeof b.clock === 'boolean') s.clock = b.clock;
+  if (['tl', 'bl', 'br'].includes(b.clockPos)) s.clockPos = b.clockPos;
   save(); res.json({ ok: true });
 });
 app.delete('/api/screens/:id', auth, (req, res) => {
@@ -269,7 +271,7 @@ app.get('/api/play/:id', (req, res) => {
     .map(({ i, m }) => ({ id: i.id, type: m.type, url: '/media/' + m.file, seconds: i.seconds, name: m.name, transition: i.transition || '' }));
   res.set('Cache-Control', 'no-store');
   res.json({ key: crypto.createHash('md5').update(JSON.stringify([s, items])).digest('hex'), name: s.name, fit: s.fit, sound: s.sound,
-    transition: s.transition, tdur: s.tdur, kenburns: s.kenburns, logo: s.logo, items });
+    transition: s.transition, tdur: s.tdur, kenburns: s.kenburns, logo: s.logo, clock: s.clock, clockPos: s.clockPos, items });
 });
 app.post('/api/play/:id/ping', (req, res) => {
   if (req.query.preview) return res.json({ ok: true }); // прегледът в админа не се брои за телевизор
