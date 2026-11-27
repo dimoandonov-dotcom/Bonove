@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="bg">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Екран</title>
+<style>
+  html,body{margin:0;height:100%;background:#000;overflow:hidden;cursor:none}
+  .slot{position:absolute;inset:0;opacity:0;transition:opacity .8s ease}
+  .slot.show{opacity:1}
+  .slot img,.slot video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000}
+  body.cover .slot img,body.cover .slot video{object-fit:cover}
+  #msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;
+    color:#8a939c;font:500 2.4vw/1.3 -apple-system,"Segoe UI",Roboto,sans-serif;text-align:center}
+  #msg small{font-size:1.3vw;opacity:.7}
+  #tap{position:absolute;right:2vw;bottom:2vw;color:#fff;background:rgba(0,0,0,.6);padding:.6vw 1.2vw;border-radius:1vw;
+    font:500 1.2vw -apple-system,"Segoe UI",Roboto,sans-serif;display:none}
+</style>
+</head>
+<body>
+<div class="slot" id="s0"></div>
+<div class="slot" id="s1"></div>
+<div id="msg" hidden></div>
+<div id="tap">Натисни OK за звук / цял екран</div>
+<script>
+(() => {
+  const ID = decodeURIComponent(location.pathname.split('/').filter(Boolean).pop() || '1');
+  const POLL = 30000;
+  const slots = [document.getElementById('s0'), document.getElementById('s1')];
+  const msg = document.getElementById('msg');
+  let cur = 0, list = [], key = '', pending = null, idx = -1, timer = null, settings = { sound: false };
+  let currentName = '', started = Date.now();
+
+  function say(t, sub) { msg.hidden = !t; msg.innerHTML = ''; if (!t) return;
+    const a = document.createElement('div'); a.textContent = t; msg.appendChild(a);
+    if (sub) { const b = document.createElement('small'); b.textContent = sub; msg.appendChild(b); } }
+
+  async function load() {
+    try {
+      const r = await fetch('/api/play/' + encodeURIComponent(ID), { cache: 'no-store' });
+      if (r.status === 404) { say('Няма екран ' + ID, 'Провери адреса в админ страницата'); return; }
+      const j = await r.json();
+      document.title = j.name || 'Екран';
+      document.body.classList.toggle('cover', j.fit === 'cover');
+      settings.sound = !!j.sound;
+      if (j.key !== key) {
+        key = j.key;
+        if (!list.length) { list = j.items; idx = -1; if (list.length) { say(''); next(); } else say(j.name, 'Няма пуснато съдържание'); }
+        else pending = j.items; // смяната става между два клипа
+      }
+    } catch (e) { /* няма мрежа — продължаваме със стария списък */ if (!list.length) say('Няма връзка', 'Опитвам пак…'); }
+  }
+  function ping() {
+    fetch('/api/play/' + encodeURIComponent(ID) + '/ping', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ current: currentName }) }).catch(() => {});
+  }
+
+  function clearSlot(el) {
+    el.querySelectorAll('video').forEach(v => { v.pause(); v.removeAttribute('src'); v.load(); });
+    el.innerHTML = '';
+  }
+
+  function next() {
+    clearTimeout(timer);
+    if (pending) { list = pending; pending = null; idx = -1;
+      if (!list.length) { slots.forEach(s => { s.classList.remove('show'); setTimeout(() => clearSlot(s), 900); }); say(document.title, 'Няма пуснато съдържание'); return; }
+      say('');
+    }
+    // нощно презареждане за чиста памет — между два клипа, след 12 ч работа
+    if (Date.now() - started > 12 * 3600e3) { location.reload(); return; }
+    if (!list.length) return;
+    idx = (idx + 1) % list.length;
+    show(list[idx]);
+  }
+
+  function show(item) {
+    const nextSlot = slots[1 - cur], oldSlot = slots[cur];
+    clearSlot(nextSlot);
+    currentName = item.name; ping();
+    let shown = false;
+    const reveal = () => {
+      if (shown) return; shown = true;
+      nextSlot.classList.add('show'); oldSlot.classList.remove('show');
+      cur = 1 - cur;
+      setTimeout(() => { if (slots[1 - cur] === oldSlot) clearSlot(oldSlot); }, 900);
+    };
+    if (item.type === 'image') {
+      const img = new Image();
+      img.onload = () => { reveal(); timer = setTimeout(next, item.seconds * 1000); };
+      img.onerror = () => { timer = setTimeout(next, 1000); };
+      img.src = item.url;
+      nextSlot.appendChild(img);
+    } else {
+      const v = document.createElement('video');
+      v.playsInline = true; v.preload = 'auto';
+      v.muted = !settings.sound || !unlocked;
+      v.src = item.url;
+      nextSlot.appendChild(v);
+      let guard = setTimeout(next, 20000); // ако не тръгне до 20 сек — следващото
+      v.onplaying = () => { clearTimeout(guard); reveal();
+        if (isFinite(v.duration)) { clearTimeout(timer); timer = setTimeout(next, (v.duration + 5) * 1000); } };
+      v.onended = () => { clearTimeout(guard); next(); };
+      v.onerror = () => { clearTimeout(guard); timer = setTimeout(next, 1000); };
+      if (list.length === 1) { v.loop = true; v.onended = null; }
+      const p = v.play();
+      if (p && p.catch) p.catch(() => { v.muted = true; v.play().catch(() => {}); if (settings.sound) showTap(); });
+    }
+  }
+
+  // Браузърът позволява звук само след едно натискане (OK на дистанционното)
+  let unlocked = false;
+  function showTap() { if (!unlocked) document.getElementById('tap').style.display = 'block'; }
+  function unlock() {
+    unlocked = true; document.getElementById('tap').style.display = 'none';
+    const el = document.documentElement;
+    if (!document.fullscreenElement && el.requestFullscreen) el.requestFullscreen().catch(() => {});
+    if (settings.sound) document.querySelectorAll('video').forEach(v => { v.muted = false; });
+  }
+  addEventListener('keydown', unlock); addEventListener('click', unlock);
+
+  // екранът да не заспива (където браузърът позволява)
+  async function wake() { try { if (navigator.wakeLock) await navigator.wakeLock.request('screen'); } catch (e) {} }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) wake(); });
+  wake();
+
+  load(); ping();
+  setInterval(load, POLL);
+  setInterval(ping, 30000);
+})();
+</script>
+</body>
+</html>

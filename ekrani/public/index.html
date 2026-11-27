@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="bg">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Екрани в магазина</title>
+<style>
+:root{
+  --ink:#16202B; --paper:#F5F6F8; --surface:#FFFFFF; --line:#E4E8EC; --muted:#6B7684;
+  --teal:#0E7C86; --teal-dark:#0A5E66; --ok:#1F8A5B; --ok-bg:#E9F5EE; --warn:#B87309; --warn-bg:#FCEFCF;
+  --bad:#C0392B; --bad-bg:#FBEAE8;
+}
+@media (prefers-color-scheme:dark){:root{
+  --ink:#E6EBEF; --paper:#11161B; --surface:#1A2128; --line:#2A333C; --muted:#95A1AD;
+  --teal:#3FB0B9; --teal-dark:#5CC3CB; --ok:#5DBB83; --ok-bg:#1B2E24; --warn:#E3A23B; --warn-bg:#33291A; --bad:#EF6F5A; --bad-bg:#3A201C; color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1000px;margin:0 auto;padding:18px 16px 80px}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+h1{font-size:24px;margin:0;font-weight:800;letter-spacing:-.01em}
+h1 small{display:block;font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--teal)}
+.disk{margin-left:auto;font-size:13px;color:var(--muted)}
+.btn{text-decoration:none;display:inline-block;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:9px 14px;font-weight:600}
+.btn:hover{border-color:var(--muted)}
+.btn.pri{background:var(--teal);border-color:var(--teal);color:#fff}
+.btn.pri:hover{background:var(--teal-dark)}
+.btn.sm{padding:5px 10px;font-size:13px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px}
+.card h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 12px}
+
+/* екрани */
+.tabs{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:14px}
+.tab{flex:none;display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:8px 16px;font-weight:600;white-space:nowrap}
+.tab[aria-pressed=true]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.dot{width:9px;height:9px;border-radius:50%;background:#9AA4AE}
+.dot.on{background:#2DBE6C;box-shadow:0 0 0 3px rgba(45,190,108,.2)}
+.screenbar{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;align-items:end}
+.field label{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin-bottom:5px}
+.field input,.field select{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;background:var(--surface)}
+.link{display:flex;gap:6px;align-items:center;margin-top:12px;flex-wrap:wrap;font-size:14px}
+.link code{background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:14px;word-break:break-all}
+.now{font-size:13.5px;color:var(--muted);margin-top:10px}
+.now b{color:var(--ink)}
+
+/* качване */
+.drop{border:2px dashed var(--line);border-radius:12px;padding:22px 16px;text-align:center;cursor:pointer;transition:.15s}
+.drop:hover,.drop.over{border-color:var(--teal);background:color-mix(in srgb,var(--teal) 6%,transparent)}
+.drop strong{color:var(--teal)}
+.drop .hint{font-size:13px;color:var(--muted);margin-top:4px}
+.pick{display:none;margin-top:14px}
+.pick.show{display:block}
+.checks{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px}
+.checks label{display:flex;gap:6px;align-items:center;border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:14px;cursor:pointer}
+.bar{height:8px;background:var(--line);border-radius:6px;overflow:hidden;margin-top:10px}
+.bar i{display:block;height:100%;width:0;background:var(--teal);transition:width .2s}
+.ptext{font-size:13px;color:var(--muted);margin-top:6px}
+
+/* списък */
+.items{display:flex;flex-direction:column;gap:8px}
+.item{display:grid;grid-template-columns:96px minmax(0,1fr) auto;gap:12px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:8px;background:var(--surface)}
+.item.off{opacity:.55}
+.thumb{width:96px;aspect-ratio:16/9;border-radius:8px;background:var(--paper);object-fit:cover;display:grid;place-items:center;font-size:12px;color:var(--muted);overflow:hidden}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.meta{min-width:0;display:flex;flex-direction:column;gap:6px}
+.meta .nm{font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meta .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--muted)}
+.meta input[type=number]{width:64px;padding:4px 6px;border:1px solid var(--line);border-radius:7px;background:var(--surface)}
+.meta input[type=date]{padding:3px 6px;border:1px solid var(--line);border-radius:7px;background:var(--surface);font-size:13px}
+.badge{display:inline-block;font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--paper);color:var(--muted)}
+.badge.ok{background:var(--ok-bg);color:var(--ok)} .badge.warn{background:var(--warn-bg);color:var(--warn)} .badge.bad{background:var(--bad-bg);color:var(--bad)}
+.acts{display:flex;gap:4px;align-items:center}
+.ic{border:1px solid var(--line);background:var(--surface);border-radius:8px;width:34px;height:34px;display:grid;place-items:center;font-size:15px;padding:0}
+.ic:hover{border-color:var(--muted)} .ic.del:hover{border-color:var(--bad);color:var(--bad)}
+.sw{position:relative;width:40px;height:24px;border-radius:12px;background:var(--line);border:0;padding:0;transition:.2s;flex:none}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.sw[aria-pressed=true]{background:var(--ok)} .sw[aria-pressed=true]::after{left:19px}
+.empty{color:var(--muted);font-size:14px;padding:14px 4px}
+@media (max-width:620px){
+  .item{grid-template-columns:72px minmax(0,1fr)}
+  .thumb{width:72px}
+  .acts{grid-column:1/-1;justify-content:flex-end}
+}
+
+/* библиотека */
+.lib{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
+.lc{border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;background:var(--surface)}
+.lc .thumb{width:100%;border-radius:0}
+.lc .b{padding:8px 10px;display:flex;flex-direction:column;gap:6px;font-size:13px}
+.lc .b .nm{font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lc .b .use{color:var(--muted)}
+.lc .b .r{display:flex;gap:6px;flex-wrap:wrap}
+
+/* вход */
+.login{max-width:360px;margin:12vh auto;text-align:center}
+.login input{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;margin:14px 0;background:var(--surface);font-size:16px}
+.err{color:var(--bad);font-size:14px;min-height:1.2em}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:12px;font-size:14px;opacity:0;transition:opacity .25s;pointer-events:none;max-width:calc(100vw - 32px)}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<div class="toast" id="toast"></div>
+<script>
+(() => {
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let S = null, cur = null, files = [], uploading = false, showLib = false;
+try { cur = localStorage.getItem('ekrani_screen'); } catch (e) {}
+
+async function api(url, opts = {}) {
+  const r = await fetch(url, { ...opts, headers: opts.body && !(opts.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {} });
+  if (r.status === 401) { S = null; renderLogin(); throw new Error('login'); }
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || 'Грешка');
+  return j;
+}
+let tt; function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('show'); clearTimeout(tt); tt = setTimeout(() => el.classList.remove('show'), 3000); }
+
+async function refresh() {
+  try { S = await api('/api/state'); } catch (e) { return; }
+  if (!S.screens.some(s => s.id === cur)) cur = S.screens[0] && S.screens[0].id;
+  render();
+}
+
+/* ---------- вход ---------- */
+function renderLogin() {
+  $('#app').innerHTML = `<form class="login card" id="lf"><h1><small>Магазин</small>Екрани</h1>
+    <input type="password" id="pw" placeholder="Парола" autocomplete="current-password" autofocus>
+    <button class="btn pri" style="width:100%">Влез</button><p class="err" id="le"></p></form>`;
+  $('#lf').onsubmit = async e => { e.preventDefault();
+    try { await api('/api/login', { method: 'POST', body: JSON.stringify({ password: $('#pw').value }) }); refresh(); }
+    catch (er) { if (er.message !== 'login') $('#le').textContent = er.message; else $('#le').textContent = 'Грешна парола'; } };
+}
+
+/* ---------- помощни ---------- */
+const mb = b => b == null ? '—' : b > 1e9 ? (b / 1e9).toFixed(1) + ' GB' : Math.round(b / 1e6) + ' MB';
+const media = id => S.media.find(m => m.id === id);
+const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Sofia' }).format(new Date());
+const bgDate = d => d ? d.split('-').reverse().join('.') : '';
+function thumb(m) {
+  if (!m) return '<div class="thumb">—</div>';
+  if (m.status === 'processing') return '<div class="thumb">обработва…</div>';
+  if (m.status === 'error') return '<div class="thumb" style="color:var(--bad)">грешка</div>';
+  return m.thumb ? `<div class="thumb"><img loading="lazy" src="/media/${esc(m.thumb)}" alt=""></div>` : `<div class="thumb">${m.type === 'video' ? 'видео' : 'снимка'}</div>`;
+}
+function itemStatus(i, m) {
+  if (!m) return '';
+  if (m.status === 'processing') return '<span class="badge warn">Обработва се</span>';
+  if (m.status === 'error') return `<span class="badge bad" title="${esc(m.error)}">Грешка: ${esc((m.error || '').slice(0, 60))}</span>`;
+  if (!i.on) return '<span class="badge">Спряно</span>';
+  const d = today();
+  if (i.from && i.from > d) return `<span class="badge warn">Тръгва на ${bgDate(i.from)}</span>`;
+  if (i.to && i.to < d) return '<span class="badge">Изтекло</span>';
+  return '<span class="badge ok">Върти се</span>';
+}
+const usedOn = id => S.screens.filter(s => (S.playlists[s.id] || []).some(i => i.mediaId === id)).map(s => s.name);
+
+/* ---------- изглед ---------- */
+function render() {
+  if (!S) return;
+  const sc = S.screens.find(s => s.id === cur);
+  const pl = sc ? (S.playlists[sc.id] || []) : [];
+  const url = sc ? location.origin + '/tv/' + sc.id : '';
+  const active = pl.filter(i => { const m = media(i.mediaId), d = today(); return i.on && m && m.status === 'ready' && (!i.from || i.from <= d) && (!i.to || i.to >= d); });
+  const loop = active.reduce((a, i) => { const m = media(i.mediaId); return a + (m.type === 'video' ? (m.duration || 0) : i.seconds); }, 0);
+
+  $('#app').innerHTML = `
+  <header>
+    <h1><small>Магазин</small>Екрани</h1>
+    <span class="disk">Файлове ${mb(S.disk.used)}${S.disk.free != null ? ' · свободно ' + mb(S.disk.free) : ''}${S.queue ? ' · обработват се ' + S.queue : ''}</span>
+    <button class="btn sm" id="out">Изход</button>
+  </header>
+
+  <nav class="tabs">${S.screens.map(s => `<button class="tab" data-tab="${esc(s.id)}" aria-pressed="${s.id === cur}"><span class="dot ${s.online ? 'on' : ''}"></span>${esc(s.name)}</button>`).join('')}
+    <button class="tab" id="addScr" title="Добави екран">+ Екран</button></nav>
+
+  ${sc ? `<section class="card">
+    <div class="screenbar">
+      <div class="field"><label>Име (сектор)</label><input id="scName" value="${esc(sc.name)}"></div>
+      <div class="field"><label>Картина</label><select id="scFit"><option value="contain"${sc.fit === 'contain' ? ' selected' : ''}>Цялата (с черни ленти)</option><option value="cover"${sc.fit === 'cover' ? ' selected' : ''}>Запълни екрана (изрязва)</option></select></div>
+      <div class="field"><label>Звук на видеата</label><select id="scSound"><option value="0"${!sc.sound ? ' selected' : ''}>Без звук</option><option value="1"${sc.sound ? ' selected' : ''}>Със звук</option></select></div>
+    </div>
+    <div class="link">Адрес за телевизора: <code>${esc(url)}</code>
+      <button class="btn sm" id="copy">Копирай</button><a class="btn sm" href="/tv/${esc(sc.id)}" target="_blank" rel="noopener">Виж</a></div>
+    <div class="now">${sc.online ? `<b>Онлайн</b>${sc.current ? ' · сега върти: <b>' + esc(sc.current) + '</b>' : ''}` : sc.lastSeen ? 'Офлайн от ' + new Date(sc.lastSeen).toLocaleString('bg-BG') : 'Телевизорът още не е отварял адреса.'}
+      · в списъка: ${active.length} активни, един кръг ≈ ${Math.round(loop / 60 * 10) / 10} мин</div>
+  </section>` : ''}
+
+  <section class="card">
+    <h2>Качи снимки и видеа</h2>
+    <div class="drop" id="drop"><strong>Избери файлове</strong> или ги пусни тук
+      <div class="hint">Видео (MP4, MOV от телефон) или снимка (JPG, PNG). Видеата се оправят автоматично за телевизора.</div></div>
+    <input type="file" id="fi" multiple accept="video/*,image/*" hidden>
+    <div class="pick ${files.length ? 'show' : ''}" id="pick">
+      <div><b>${files.length}</b> файла · ${mb(files.reduce((a, f) => a + f.size, 0))}</div>
+      <div style="font-size:13px;color:var(--muted);margin-top:8px">На кои екрани да се въртят:</div>
+      <div class="checks">${S.screens.map(s => `<label><input type="checkbox" class="upScr" value="${esc(s.id)}"${s.id === cur ? ' checked' : ''}> ${esc(s.name)}</label>`).join('')}</div>
+      <button class="btn pri" id="upGo"${uploading ? ' disabled' : ''}>Качи</button> <button class="btn" id="upX"${uploading ? ' disabled' : ''}>Откажи</button>
+      <div class="bar"><i id="upBar"></i></div><div class="ptext" id="upTxt"></div>
+    </div>
+  </section>
+
+  ${sc ? `<section class="card">
+    <h2>Върти се на „${esc(sc.name)}“ — по ред</h2>
+    <div class="items">${pl.length ? pl.map((i, n) => { const m = media(i.mediaId); return `
+      <div class="item ${i.on ? '' : 'off'}" data-i="${n}">
+        ${thumb(m)}
+        <div class="meta">
+          <span class="nm" title="${esc(m && m.name)}">${n + 1}. ${esc(m ? m.name : 'изтрит файл')}</span>
+          <div class="row">${itemStatus(i, m)}
+            ${m && m.type === 'image' ? `<label>Показва се <input type="number" min="3" max="600" value="${i.seconds}" data-f="seconds"> сек</label>` : m ? `<span>Видео${m.duration ? ' · ' + Math.round(m.duration) + ' сек' : ''}</span>` : ''}</div>
+          <div class="row"><label>от <input type="date" value="${esc(i.from)}" data-f="from"></label><label>до <input type="date" value="${esc(i.to)}" data-f="to"></label></div>
+        </div>
+        <div class="acts">
+          <button class="sw" data-a="on" aria-pressed="${i.on}" title="Вкл / изкл"></button>
+          <button class="ic" data-a="up" title="Нагоре"${n === 0 ? ' disabled' : ''}>↑</button>
+          <button class="ic" data-a="down" title="Надолу"${n === pl.length - 1 ? ' disabled' : ''}>↓</button>
+          <button class="ic del" data-a="rm" title="Махни от този екран">✕</button>
+        </div>
+      </div>`; }).join('') : '<p class="empty">Още няма нищо. Качи файлове горе или добави от библиотеката.</p>'}</div>
+    <div style="margin-top:12px"><button class="btn" id="libBtn">${showLib ? 'Скрий библиотеката' : 'Добави от библиотеката'}</button></div>
+  </section>` : ''}
+
+  ${showLib || !sc ? `<section class="card">
+    <h2>Библиотека — всички файлове (${S.media.length})</h2>
+    ${S.media.length ? `<div class="lib">${S.media.slice().reverse().map(m => { const u = usedOn(m.id); return `
+      <div class="lc">${thumb(m)}<div class="b">
+        <span class="nm" title="${esc(m.name)}">${esc(m.name)}</span>
+        <span class="use">${m.type === 'video' ? 'Видео' : 'Снимка'}${m.size ? ' · ' + mb(m.size) : ''}<br>${u.length ? 'На: ' + esc(u.join(', ')) : 'Не се върти никъде'}</span>
+        <div class="r">${sc ? `<button class="btn sm" data-add="${esc(m.id)}">+ ${esc(sc.name)}</button>` : ''}
+          <button class="btn sm" data-ren="${esc(m.id)}">Име</button><button class="btn sm" data-del="${esc(m.id)}" style="color:var(--bad)">Изтрий</button></div>
+      </div></div>`; }).join('')}</div>` : '<p class="empty">Няма качени файлове.</p>'}
+    ${sc ? `<div style="margin-top:14px"><button class="btn sm" id="delScr" style="color:var(--bad)">Премахни екран „${esc(sc.name)}“</button></div>` : ''}
+  </section>` : ''}`;
+  bind(sc, pl);
+}
+
+/* ---------- действия ---------- */
+async function savePl(pl) {
+  S.playlists[cur] = pl; render();
+  try { await api('/api/playlists/' + encodeURIComponent(cur), { method: 'PUT', body: JSON.stringify(pl) }); } catch (e) { if (e.message !== 'login') toast(e.message); refresh(); }
+}
+async function patchScreen(body) { try { await api('/api/screens/' + encodeURIComponent(cur), { method: 'PATCH', body: JSON.stringify(body) }); refresh(); } catch (e) { toast(e.message); } }
+
+function bind(sc, pl) {
+  $('#out').onclick = async () => { await api('/api/logout', { method: 'POST' }).catch(() => {}); renderLogin(); };
+  document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { cur = b.dataset.tab; try { localStorage.setItem('ekrani_screen', cur); } catch (e) {} render(); });
+  $('#addScr').onclick = async () => { const j = await api('/api/screens', { method: 'POST' }); cur = j.id; refresh(); };
+  if (sc) {
+    $('#scName').onchange = e => patchScreen({ name: e.target.value });
+    $('#scFit').onchange = e => patchScreen({ fit: e.target.value });
+    $('#scSound').onchange = e => patchScreen({ sound: e.target.value === '1' });
+    $('#copy').onclick = () => { navigator.clipboard.writeText(location.origin + '/tv/' + sc.id).then(() => toast('Копирано'), () => toast(location.origin + '/tv/' + sc.id)); };
+    $('#libBtn').onclick = () => { showLib = !showLib; render(); };
+    document.querySelectorAll('.item').forEach(row => {
+      const n = +row.dataset.i;
+      row.querySelectorAll('[data-f]').forEach(inp => inp.onchange = () => {
+        const p = pl.map(x => ({ ...x })); p[n][inp.dataset.f] = inp.dataset.f === 'seconds' ? +inp.value : inp.value;
+        if (p[n].from && p[n].to && p[n].from > p[n].to) { toast('Крайната дата е преди началната'); render(); return; }
+        savePl(p);
+      });
+      row.querySelectorAll('[data-a]').forEach(b => b.onclick = () => {
+        const p = pl.map(x => ({ ...x })), a = b.dataset.a;
+        if (a === 'on') p[n].on = !p[n].on;
+        else if (a === 'up' && n > 0) [p[n - 1], p[n]] = [p[n], p[n - 1]];
+        else if (a === 'down' && n < p.length - 1) [p[n + 1], p[n]] = [p[n], p[n + 1]];
+        else if (a === 'rm') p.splice(n, 1);
+        savePl(p);
+      });
+    });
+    const ds = $('#delScr');
+    if (ds) ds.onclick = async () => { if (!confirm(`Да премахна „${sc.name}“? Файловете остават в библиотеката.`)) return;
+      await api('/api/screens/' + encodeURIComponent(sc.id), { method: 'DELETE' }); cur = null; refresh(); };
+  }
+  document.querySelectorAll('[data-add]').forEach(b => b.onclick = () => {
+    savePl([...pl, { id: '', mediaId: b.dataset.add, seconds: 10, from: '', to: '', on: true }]); toast('Добавено в края на списъка');
+  });
+  document.querySelectorAll('[data-ren]').forEach(b => b.onclick = async () => {
+    const m = media(b.dataset.ren); const v = prompt('Ново име', m.name); if (!v) return;
+    await api('/api/media/' + m.id, { method: 'PATCH', body: JSON.stringify({ name: v }) }); refresh();
+  });
+  document.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => {
+    const m = media(b.dataset.del), u = usedOn(m.id);
+    if (!confirm(`Да изтрия „${m.name}“ завинаги?${u.length ? '\nМаха се и от: ' + u.join(', ') : ''}`)) return;
+    await api('/api/media/' + m.id, { method: 'DELETE' }); refresh();
+  });
+
+  // качване
+  const drop = $('#drop'), fi = $('#fi');
+  drop.onclick = () => fi.click();
+  fi.onchange = () => { files = [...fi.files]; render(); };
+  drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
+  drop.ondragleave = () => drop.classList.remove('over');
+  drop.ondrop = e => { e.preventDefault(); files = [...e.dataTransfer.files].filter(f => /^(video|image)\//.test(f.type)); render(); };
+  const x = $('#upX'); if (x) x.onclick = () => { files = []; render(); };
+  const go = $('#upGo'); if (go) go.onclick = doUpload;
+}
+
+function doUpload() {
+  const screens = [...document.querySelectorAll('.upScr:checked')].map(c => c.value);
+  const fd = new FormData();
+  fd.append('screens', JSON.stringify(screens));
+  files.forEach(f => fd.append('files', f, f.name));
+  uploading = true; $('#upGo').disabled = true; $('#upX').disabled = true;
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', '/api/upload');
+  xhr.upload.onprogress = e => { if (!e.lengthComputable) return; const p = Math.round(e.loaded / e.total * 100);
+    $('#upBar').style.width = p + '%'; $('#upTxt').textContent = `Качване… ${p}% (${mb(e.loaded)} от ${mb(e.total)}) — не затваряй страницата`; };
+  xhr.onload = () => { uploading = false;
+    if (xhr.status === 401) return renderLogin();
+    if (xhr.status >= 300) { let m = 'Грешка при качване'; try { m = JSON.parse(xhr.responseText).error || m; } catch (e) {} $('#upTxt').textContent = m; $('#upGo').disabled = false; $('#upX').disabled = false; return; }
+    files = []; toast('Качено. Видеата се обработват и тръгват сами след малко.'); refresh(); };
+  xhr.onerror = () => { uploading = false; $('#upTxt').textContent = 'Връзката прекъсна. Опитай пак.'; $('#upGo').disabled = false; $('#upX').disabled = false; };
+  xhr.send(fd);
+}
+
+// опресняване: по-често, докато нещо се обработва; не пречи, докато пишеш или качваш
+setInterval(() => {
+  if (!S || uploading || files.length) return;
+  const a = document.activeElement; if (a && /INPUT|SELECT/.test(a.tagName)) return;
+  if (S.queue || Date.now() % 20000 < 5000) refresh();
+}, 5000);
+
+refresh();
+})();
+</script>
+</body>
+</html>
