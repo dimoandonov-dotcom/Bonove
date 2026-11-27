@@ -9,7 +9,7 @@ android {
         targetSdk 35
         versionCode Integer.parseInt(System.getenv('BUILD_NUMBER') ?: '1')
         versionName "1." + (System.getenv('BUILD_NUMBER') ?: '1')
-        buildConfigField 'String', 'BASE_URL', '"' + (System.getenv('EKRANI_URL') ?: 'https://ekrani-production.up.railway.app') + '"'
+        buildConfigField 'String', 'BASE_URL', '"' + (System.getenv('EKRANI_URL') ?: 'https://ekrani.up.railway.app') + '"'
     }
     buildFeatures { buildConfig true }
     signingConfigs {
